@@ -164,13 +164,14 @@ class Router extends AbstractPeer
             throw new \Exception("No transport providers specified.");
         }
 
+        $this->setupManager();
+
         foreach ($this->transportProviders as $transportProvider) {
             $this->manager->debug("Starting transport provider " . get_class($transportProvider));
             $transportProvider->setManager($this->manager);
             $transportProvider->startTransportProvider($this, $this->loop);
         }
 
-        $this->setupManager();
 
         $this->manager->debug("Starting loop");
         $this->loop->run();
