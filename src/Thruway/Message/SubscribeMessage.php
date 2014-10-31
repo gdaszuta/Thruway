@@ -9,7 +9,7 @@ namespace Thruway\Message;
  *
  * @package Thruway\Message
  */
-class SubscribeMessage extends Message
+class SubscribeMessage extends Message implements ActionMessageInterface
 {
 
     /**
@@ -41,7 +41,7 @@ class SubscribeMessage extends Message
     {
         parent::__construct();
 
-        $this->options   = $options;
+        $this->setOptions($options);
         $this->topicName = $topicName;
         $this->setRequestId($requestId);
     }
@@ -64,7 +64,7 @@ class SubscribeMessage extends Message
      */
     public function getAdditionalMsgFields()
     {
-        return [$this->getRequestId(), $this->getOptions(), $this->getTopicName()];
+        return [$this->getRequestId(), (object)$this->getOptions(), $this->getTopicName()];
     }
 
     /**
@@ -74,7 +74,7 @@ class SubscribeMessage extends Message
      */
     public function setOptions($options)
     {
-        $this->options = $options;
+        $this->options = (array)$options;
     }
 
     /**
@@ -126,5 +126,27 @@ class SubscribeMessage extends Message
     {
         return $this->requestId;
     }
+
+    /**
+     * This returns the Uri so that the authorization manager doesn't have to know
+     * exactly the type of object to get the Uri
+     *
+     * @return mixed
+     */
+    public function getUri()
+    {
+        return $this->getTopicName();
+    }
+
+    /**
+     * This returns the action name "publish", "subscribe", "register", "call"
+     *
+     * @return mixed
+     */
+    public function getActionName()
+    {
+        return "subscribe";
+    }
+
 
 }

@@ -9,11 +9,8 @@ use Thruway\Manager\ManagerDummy;
 use Thruway\Manager\ManagerInterface;
 use Thruway\Message\CallMessage;
 use Thruway\Message\ErrorMessage;
-use Thruway\Message\InvocationMessage;
 use Thruway\Message\Message;
 use Thruway\Message\RegisterMessage;
-use Thruway\Message\ResultMessage;
-use Thruway\Message\UnregisteredMessage;
 use Thruway\Message\UnregisterMessage;
 use Thruway\Message\YieldMessage;
 use Thruway\Procedure;
@@ -37,6 +34,12 @@ class Dealer extends AbstractRole
      */
     private $manager;
 
+
+    /**
+     * @var array
+     */
+    private $callIndex;
+
     /**
      * Constructor
      *
@@ -44,8 +47,9 @@ class Dealer extends AbstractRole
      */
     public function __construct(ManagerInterface $manager = null)
     {
-        $this->procedures    = [];
-        $manager             = $manager === null ? $manager : new ManagerDummy();
+        $this->procedures = [];
+        $this->callIndex  = [];
+        $manager          = $manager === null ? $manager : new ManagerDummy();
 
         $this->setManager($manager);
     }
@@ -97,7 +101,7 @@ class Dealer extends AbstractRole
         if (isset($this->procedures[$msg->getProcedureName()])) {
             $procedure = $this->procedures[$msg->getProcedureName()];
         } else {
-            $procedure =  new Procedure($msg->getProcedureName());
+            $procedure                                  = new Procedure($msg->getProcedureName());
             $this->procedures[$msg->getProcedureName()] = $procedure;
         }
 
@@ -151,7 +155,15 @@ class Dealer extends AbstractRole
         /* @var $procedure \Thruway\Procedure */
         $procedure = $this->procedures[$msg->getProcedureName()];
 
-        $procedure->processCall($session, $msg);
+        $call = new Call($session, $msg);
+
+        $this->callIndex[$call->getInvocationRequestId()] = $call;
+
+        $keepIndex = $procedure->processCall($session, $call);
+
+        if (!$keepIndex) {
+            unset($this->callIndex[$call->getInvocationRequestId()]);
+        }
     }
 
     /**
@@ -162,22 +174,35 @@ class Dealer extends AbstractRole
      */
     private function processYield(Session $session, YieldMessage $msg)
     {
-        /* @var $procedure \Thruway\Procedure */
-        foreach ($this->procedures as $procedure) {
-            $call = $procedure->getCallByRequestId($msg->getRequestId());
-            if ($call) {
-                $call->processYield($session, $msg);
 
-                if ($procedure->getAllowMultipleRegistrations()) {
+        /* @var $call Call */
+        $call = isset($this->callIndex[$msg->getRequestId()]) ? $this->callIndex[$msg->getRequestId()] : null;
+
+        if ($call) {
+            $keepIndex = $call->processYield($session, $msg);
+
+            if (!$keepIndex) {
+                unset($this->callIndex[$msg->getRequestId()]);
+            }
+
+            /* @var $procedure \Thruway\Procedure */
+            $procedure = isset($this->procedures[$call->getCallMessage()->getUri()]) ? $this->procedures[$call->getCallMessage()->getUri()] : null;
+            if ($procedure && $procedure->getAllowMultipleRegistrations()) {
+                $procedure->processQueue();
+            }
+
+            //Process all queues @todo This will need to be optimized at some point
+            /** @var Registration $registration */
+            foreach ($procedure->getRegistrations() as $registration) {
+                if ($procedure->getAllowMultipleRegistrations() && $registration->getSession() === $session) {
                     $procedure->processQueue();
+                    // we only need to process once per process
+                    break;
                 }
-
-                return;
             }
         }
 
         // TODO: This is an error - can I return a yield error?
-
 
     }
 
@@ -240,7 +265,9 @@ class Dealer extends AbstractRole
         /** @var Procedure $procedure */
         foreach ($this->procedures as $procedure) {
             $call = $procedure->getCallByRequestId($requestId);
-            if ($call) return $call;
+            if ($call) {
+                return $call;
+            }
         }
 
         return false;
@@ -279,14 +306,14 @@ class Dealer extends AbstractRole
     public function leave(Session $session)
     {
         /* @var $procedure \Thruway\Procedure */
-        foreach($this->procedures as $procedure) {
+        foreach ($this->procedures as $procedure) {
             $procedure->leave($session);
         }
     }
 
     /**
      * Set manager
-     * 
+     *
      * @param \Thruway\Manager\ManagerInterface $manager
      */
     public function setManager($manager)
@@ -298,7 +325,7 @@ class Dealer extends AbstractRole
 
     /**
      * Get manager
-     * 
+     *
      * @return \Thruway\Manager\ManagerInterface
      */
     public function getManager()
@@ -320,9 +347,9 @@ class Dealer extends AbstractRole
             /* @var $registration \Thruway\Registration */
             foreach ($procedure->getRegistrations() as $registration) {
                 $theRegistrations[] = [
-                    "id" => $registration->getId(),
-                    "name" => $registration->getProcedureName(),
-                    "session" => $registration->getSession()->getSessionId(),
+                    "id"         => $registration->getId(),
+                    "name"       => $registration->getProcedureName(),
+                    "session"    => $registration->getSession()->getSessionId(),
                     "statistics" => $registration->getStatistics()
                 ];
             }

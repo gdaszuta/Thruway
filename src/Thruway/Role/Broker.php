@@ -92,6 +92,10 @@ class Broker extends AbstractRole
 
         $includePublisher = false;
 
+        $excludedSessions = [];
+
+        $whiteList = null;
+
         $options = $msg->getOptions();
         if (is_array($options)) {
             // see if they wanted confirmation
@@ -104,14 +108,35 @@ class Broker extends AbstractRole
             if (isset($options['exclude_me']) && !$options['exclude_me']) {
                 $includePublisher = true;
             }
+            if (isset($options['exclude']) && is_array($options['exclude'])) {
+                // fixup exclude array - make sure it is legit
+                foreach($options['exclude'] as $excludedSession) {
+                    if (is_numeric($excludedSession)) {
+                        array_push($excludedSessions, $excludedSession);
+                    }
+                }
+            }
+            if (isset($options['eligible']) && is_array($options['eligible'])) {
+                $whiteList = [];
+                foreach($options['eligible'] as $sessionId) {
+                    if (is_numeric($sessionId)) {
+                        array_push($whiteList, $sessionId);
+                    }
+                }
+            }
         }
 
         /* @var $subscription \Thruway\Subscription */
         foreach ($this->subscriptions as $subscription) {
             if ($msg->getTopicName() == $subscription->getTopic() &&
-                ($includePublisher || $subscription->getSession() != $session)) {
-                $eventMsg = EventMessage::createFromPublishMessage($msg, $subscription->getId());
-                $subscription->getSession()->sendMessage($eventMsg);
+                ($includePublisher || $subscription->getSession() != $session)
+            ) {
+                if (!in_array($subscription->getSession()->getSessionId(), $excludedSessions)) {
+                    if ($whiteList === null || in_array($subscription->getSession()->getSessionId(), $whiteList)) {
+                        $eventMsg = EventMessage::createFromPublishMessage($msg, $subscription->getId());
+                        $subscription->getSession()->sendMessage($eventMsg);
+                    }
+                }
             }
         }
         

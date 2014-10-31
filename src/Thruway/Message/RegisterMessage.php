@@ -9,7 +9,7 @@ namespace Thruway\Message;
  *
  * @package Thruway\Message
  */
-class RegisterMessage extends Message
+class RegisterMessage extends Message implements ActionMessageInterface
 {
 
     /**
@@ -41,7 +41,7 @@ class RegisterMessage extends Message
 
     /**
      * Get message code
-     * 
+     *
      * @return int
      */
     public function getMsgCode()
@@ -57,12 +57,12 @@ class RegisterMessage extends Message
      */
     public function getAdditionalMsgFields()
     {
-        return [$this->requestId, $this->getOptions(), $this->getProcedureName()];
+        return [$this->requestId, (object)$this->getOptions(), $this->getProcedureName()];
     }
 
     /**
      * Get options
-     * 
+     *
      * @return array
      */
     public function getOptions()
@@ -77,12 +77,12 @@ class RegisterMessage extends Message
      */
     public function setOptions($options)
     {
-        $this->options = $options;
+        $this->options = (array)$options;
     }
 
     /**
      * Get procedure name
-     * 
+     *
      * @return string
      */
     public function getProcedureName()
@@ -92,12 +92,34 @@ class RegisterMessage extends Message
 
     /**
      * Get request ID
-     * 
+     *
      * @return int
      */
     public function getRequestId()
     {
         return $this->requestId;
     }
+
+    /**
+     * This returns the Uri so that the authorization manager doesn't have to know
+     * exactly the type of object to get the Uri
+     *
+     * @return mixed
+     */
+    public function getUri()
+    {
+        return $this->getProcedureName();
+    }
+
+    /**
+     * This returns the action name "publish", "subscribe", "register", "call"
+     *
+     * @return mixed
+     */
+    public function getActionName()
+    {
+        return "register";
+    }
+
 
 }

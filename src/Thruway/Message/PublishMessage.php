@@ -11,7 +11,7 @@ namespace Thruway\Message;
  *
  * @package Thruway\Message
  */
-class PublishMessage extends Message
+class PublishMessage extends Message implements ActionMessageInterface
 {
 
     /**
@@ -52,16 +52,15 @@ class PublishMessage extends Message
         parent::__construct();
 
         $this->setRequestId($requestId);
-
         $this->setArguments($arguments);
         $this->setArgumentsKw($argumentsKw);
-        $this->options   = $options;
+        $this->setOptions($options);
         $this->topicName = $topicName;
     }
 
     /**
      * Get message code
-     * 
+     *
      * @return int
      */
     public function getMsgCode()
@@ -92,17 +91,17 @@ class PublishMessage extends Message
 
     /**
      * Set options
-     * 
+     *
      * @param mixed $options
      */
     public function setOptions($options)
     {
-        $this->options = $options;
+        $this->options = (array)$options;
     }
 
     /**
      * Get options
-     * 
+     *
      * @return mixed
      */
     public function getOptions()
@@ -112,7 +111,7 @@ class PublishMessage extends Message
 
     /**
      * Set topic name
-     * 
+     *
      * @param string $topicName
      */
     public function setTopicName($topicName)
@@ -122,7 +121,7 @@ class PublishMessage extends Message
 
     /**
      * Get topic name
-     * 
+     *
      * @return string
      */
     public function getTopicName()
@@ -132,7 +131,7 @@ class PublishMessage extends Message
 
     /**
      * Set request ID
-     * 
+     *
      * @param int $requestId
      */
     public function setRequestId($requestId)
@@ -142,12 +141,34 @@ class PublishMessage extends Message
 
     /**
      * Get request ID
-     * 
+     *
      * @return int
      */
     public function getRequestId()
     {
         return $this->requestId;
     }
+
+    /**
+     * This returns the Uri so that the authorization manager doesn't have to know
+     * exactly the type of object to get the Uri
+     *
+     * @return mixed
+     */
+    public function getUri()
+    {
+        return $this->getTopicName();
+    }
+
+    /**
+     * This returns the action name "publish", "subscribe", "register", "call"
+     *
+     * @return mixed
+     */
+    public function getActionName()
+    {
+        return "publish";
+    }
+
 
 }
