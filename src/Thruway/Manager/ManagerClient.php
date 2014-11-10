@@ -69,7 +69,7 @@ class ManagerClient extends Client implements ManagerInterface
     public function addCallable($name, $callback)
     {
         $this->callables[] = [$name, $callback];
-        echo "Callable added {$name}\n";
+        $this->getLogger()->info("Callable added {$name}");
 
         if ($this->sessionIsUp()) {
             $this->getCallee()->register($this->session, "manager." . $name, $callback);
