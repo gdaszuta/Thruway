@@ -3,7 +3,6 @@
 namespace Thruway;
 
 
-use Psr\Log\LoggerInterface;
 use React\EventLoop\LoopInterface;
 use Thruway\Message\AuthenticateMessage;
 use Thruway\Message\ChallengeMessage;
@@ -48,23 +47,16 @@ class Connection implements EventEmitterInterface
      *
      * @param array $options
      * @param \React\EventLoop\LoopInterface $loop
-     * @param \Psr\Log\LoggerInterface $logger
      * @throws \Exception
      */
-    public function __construct(Array $options, LoopInterface $loop = null, LoggerInterface $logger = null)
+    public function __construct(Array $options, LoopInterface $loop = null)
     {
 
         $this->options = $options;
         $this->client  = new Client($options['realm'], $loop);
-
         $url           = isset($options['url']) ? $options['url'] : null;
         $pawlTransport = new PawlTransportProvider($url);
-
-        if ($logger) {
-            $pawlTransport->getManager()->setLogger($logger);
-        }
         $this->client->addTransportProvider($pawlTransport);
-
         $this->client->setReconnectOptions($options);
 
         /*
@@ -78,10 +70,15 @@ class Connection implements EventEmitterInterface
             $this->client->on(
                 'challenge',
                 function (ClientSession $session, ChallengeMessage $msg) use ($options) {
-                    $token = $options['onChallenge']($session, $msg->getAuthMethod());
+                    $token = call_user_func_array($options['onChallenge'], [$session, $msg->getAuthMethod(), $msg]);
                     $session->sendMessage(new AuthenticateMessage($token));
                 }
             );
+        }
+
+        //Set Authid
+        if (isset($options['authid'])) {
+            $this->client->setAuthId($options['authid']);
         }
 
         if (isset($this->options['onClose']) && is_callable($this->options['onClose'])) {
