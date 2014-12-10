@@ -190,6 +190,8 @@ class Broker extends AbstractRole
         $subscribedMsg = new SubscribedMessage($msg->getRequestId(), $subscription->getId());
         $session->sendMessage($subscribedMsg);
 
+        $session->getRealm()->publishMeta('wamp.metaevent.session.on_subscribe', [$session->getMetaInfo(), $subscription]);
+
     }
 
     /**
@@ -209,6 +211,8 @@ class Broker extends AbstractRole
 
             return;
         }
+
+        $session->getRealm()->publishMeta('wamp.metaevent.session.on_unsubscribe', [$session->getMetaInfo(), $subscription]);
 
         $topicName = $subscription->getTopic();
         //$subscribers = $this->topics[$topicName];
